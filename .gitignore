@@ -1,0 +1,19 @@
+# Flutter
+build/
+.dart_tool/
+.packages
+.pub/
+flutter_export_environment.sh
+
+# Go
+*.exe
+*.log
+*.out
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
