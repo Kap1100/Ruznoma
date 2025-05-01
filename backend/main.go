@@ -15,8 +15,20 @@ type Task struct {
 	Completed   bool   `json:"Завершено"`
 }
 
-var tasks []Task
 var nextID int
+var tasks = []Task{
+	{ID: 1, Title: "Первая задача", Description: "Описание задачи", Completed: false},
+	{ID: 2, Title: "Вторая задача", Description: "Ещё одно описание", Completed: true},
+}
+
+func init() {
+	// Установим nextID равным максимальному ID из начальных задач
+	for _, t := range tasks {
+		if t.ID > nextID {
+			nextID = t.ID
+		}
+	}
+}
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -86,10 +98,21 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/tasks", getTasks)
-	http.HandleFunc("/tasks/create", createTask)
-	http.HandleFunc("/tasks/update", updateTask)
-	http.HandleFunc("/tasks/delete", deleteTask)
-
 	fmt.Println("Сервер запущен на порту 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func tasksHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		getTasks(w, r)
+	case http.MethodPost:
+		createTask(w, r)
+	case http.MethodPut:
+		updateTask(w, r)
+	case http.MethodDelete:
+		deleteTask(w, r)
+	default:
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+	}
 }
