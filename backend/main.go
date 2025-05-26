@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -19,15 +20,6 @@ var nextID int
 var tasks = []Task{
 	{ID: 1, Title: "Первая задача", Description: "Описание задачи", Completed: false},
 	{ID: 2, Title: "Вторая задача", Description: "Ещё одно описание", Completed: true},
-}
-
-func init() {
-	// Установим nextID равным максимальному ID из начальных задач
-	for _, t := range tasks {
-		if t.ID > nextID {
-			nextID = t.ID
-		}
-	}
 }
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
@@ -57,19 +49,18 @@ func updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updatedTask Task
-	if err := json.NewDecoder(r.Body).Decode(&updatedTask); err != nil {
-		http.Error(w, "Ошибка при обновлении задачи", http.StatusBadRequest)
+	var updated Task
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+		http.Error(w, "Ошибка при обновлении", http.StatusBadRequest)
 		return
 	}
 
-	for i, task := range tasks {
-		if task.ID == id {
-			tasks[i].Title = updatedTask.Title
-			tasks[i].Description = updatedTask.Description
-			tasks[i].Completed = updatedTask.Completed
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(tasks[i])
+	for i, t := range tasks {
+		if t.ID == id {
+			tasks[i].Title = updated.Title
+			tasks[i].Description = updated.Description
+			tasks[i].Completed = updated.Completed
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 	}
@@ -85,8 +76,8 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i, task := range tasks {
-		if task.ID == id {
+	for i, t := range tasks {
+		if t.ID == id {
 			tasks = append(tasks[:i], tasks[i+1:]...)
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -97,22 +88,27 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/tasks", getTasks)
-	fmt.Println("Сервер запущен на порту 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
-func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		getTasks(w, r)
-	case http.MethodPost:
-		createTask(w, r)
-	case http.MethodPut:
-		updateTask(w, r)
-	case http.MethodDelete:
-		deleteTask(w, r)
-	default:
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+	// Проверка наличия папки frontend
+	if _, err := os.Stat("../frontend"); os.IsNotExist(err) {
+		log.Fatal("❌ Папка ./frontend не найдена")
 	}
+
+	http.Handle("/", http.FileServer(http.Dir("../frontend")))
+	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			getTasks(w, r)
+		case http.MethodPost:
+			createTask(w, r)
+		case http.MethodPut:
+			updateTask(w, r)
+		case http.MethodDelete:
+			deleteTask(w, r)
+		default:
+			http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		}
+	})
+
+	fmt.Println("✅ Сервер запущен на http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
