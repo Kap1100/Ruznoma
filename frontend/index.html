@@ -1,38 +1,82 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Список задач</title>
+  <meta charset="UTF-8" />
+  <title>Ruznoma — Планировщик задач</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
     .task { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-    .completed { background-color: #e0ffe0; }
+    .completed { text-decoration: line-through; color: gray; }
+    button { margin-right: 10px; }
+    input { margin-bottom: 10px; padding: 5px; }
   </style>
 </head>
 <body>
-  <h1>Список задач</h1>
+  <h1>Планировщик задач</h1>
+
+  <input type="text" id="title" placeholder="Название"><br>
+  <input type="text" id="desc" placeholder="Описание"><br>
+  <button onclick="addTask()">Добавить</button>
+
+  <hr>
+
   <div id="tasks"></div>
 
   <script>
-    fetch("http://localhost:8080/tasks")
-      .then(response => response.json())
-      .then(data => {
-        const tasksDiv = document.getElementById("tasks");
-        data.forEach(task => {
-          const div = document.createElement("div");
-          div.className = "task" + (task.Завершено ? " completed" : "");
-          div.innerHTML = `
-            <strong>${task.Название}</strong><br>
-            <em>${task.Описание}</em><br>
-            Статус: ${task.Завершено ? "Завершено ✅" : "В процессе ⏳"}
-          `;
-          tasksDiv.appendChild(div);
-        });
-      })
-      .catch(error => {
-        document.getElementById("tasks").innerText = "Ошибка загрузки задач";
-        console.error("Ошибка:", error);
+    async function loadTasks() {
+      const res = await fetch('/tasks');
+      const data = await res.json();
+      const container = document.getElementById('tasks');
+      container.innerHTML = '';
+
+      data.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task';
+        if (task.Завершено) div.classList.add('completed');
+
+        div.innerHTML = `
+          <strong>${task.Название}</strong><br>
+          ${task.Описание}<br><br>
+          <button onclick="toggleTask(${task.id}, ${task.Завершено})">
+            ${task.Завершено ? 'Возобновить' : 'Завершить'}
+          </button>
+          <button onclick="deleteTask(${task.id})">Удалить</button>
+        `;
+        container.appendChild(div);
       });
+    }
+
+    async function addTask() {
+      const title = document.getElementById('title').value;
+      const desc = document.getElementById('desc').value;
+      if (!title || !desc) return alert("Заполните оба поля");
+
+      await fetch('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Название: title, Описание: desc, Завершено: false })
+      });
+
+      document.getElementById('title').value = '';
+      document.getElementById('desc').value = '';
+      loadTasks();
+    }
+
+    async function deleteTask(id) {
+      await fetch(`/tasks?id=${id}`, { method: 'DELETE' });
+      loadTasks();
+    }
+
+    async function toggleTask(id, completed) {
+      await fetch(`/tasks?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Завершено: !completed })
+      });
+      loadTasks();
+    }
+
+    loadTasks();
   </script>
 </body>
 </html>
